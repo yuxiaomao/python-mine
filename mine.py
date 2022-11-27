@@ -4,6 +4,7 @@
 from enum import Enum
 
 class CellMark(Enum):
+    Revealed = -1
     NoMark = 0
     Flag = 1
     Unknown = 2
@@ -57,6 +58,7 @@ class GameSpace:
     self.size = self.row * self.col
     self.arr_mines = self.gen_mines_position()
     self.arr_tips = self.gen_tips_array()
+    self.arr_marks = [[CellMark.NoMark for x in range(self.col)] for x in range(self.row)]
 
   # Generate an array with positions of mines mark as true
   # Hypothesis: 0 <= mine_count <= size
@@ -97,9 +99,10 @@ class GameSpace:
 import tkinter
 
 class MyWindow:
-  def __init__(self, gamespace):
+  def __init__(self):
     # Variables
-    self.gs = gamespace
+    self.gs = GameSpace(3, 4, 7)
+    print(self.gs)
 
     # Window
     self.root = tkinter.Tk()
@@ -135,7 +138,11 @@ class MyWindow:
 
   def left_click_cell(self, event, row, col):
     event.widget.configure(relief=tkinter.RIDGE)
-    print("left click on " + str(row) + "," + str(col))
+    # Do nothing if already revealed
+    if self.gs.arr_marks[row][col] == CellMark.Revealed:
+      return
+    # If not revealed yet, set and check gamespace
+    self.gs.arr_marks[row][col] = CellMark.Revealed
     if self.gs.arr_mines[row][col]:
       event.widget.configure(text="*")
       print("BOOOOM!")
@@ -143,12 +150,22 @@ class MyWindow:
       event.widget.configure(text=str(self.gs.arr_tips[row][col]))
 
   def right_click_cell(self, event, row, col):
+    # Do nothing if already revealed
+    if self.gs.arr_marks[row][col] == CellMark.Revealed:
+      return
+    # Animate Right click
     event.widget.configure(relief=tkinter.SUNKEN)
-    print("right click on " + str(row) + "," + str(col))
     event.widget.after(50, lambda: event.widget.configure(relief=tkinter.RAISED))
-
+    # Switch to next cellmark
+    if self.gs.arr_marks[row][col] == CellMark.NoMark:
+      self.gs.arr_marks[row][col] = CellMark.Flag
+      event.widget.configure(text="F")
+    elif self.gs.arr_marks[row][col] == CellMark.Flag:
+      self.gs.arr_marks[row][col] = CellMark.Unknown
+      event.widget.configure(text="?")
+    elif self.gs.arr_marks[row][col] == CellMark.Unknown:
+      self.gs.arr_marks[row][col] = CellMark.NoMark
+      event.widget.configure(text="")
 
 # ----- Main -----
-gs = GameSpace(3, 4, 7)
-print(gs)
-MyWindow(gs)
+MyWindow()
