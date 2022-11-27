@@ -8,3 +8,7 @@ Run with Python environement:
 - (powershell) `python mine.py`
 - (linux) `python3 mine.py`
 
+## Development tools
+- python3 on Linux / Windows
+- gedit text editor
+
