@@ -165,12 +165,12 @@ class MyWindow:
     self.root = tkinter.Tk()
     self.root.title("Minesweeper - by YM")
     self.root.resizable(False, False)
+    self.center_window(self.root, self.root)
     self.frm_root = tkinter.Frame(self.root)
     self.frm_root.grid()
 
     # Gen menu
     self.menu = self.gen_menu(self.root)
-    self.update_window(self.root, self.frm_root)
 
     # Gen content
     self.frm_bar = tkinter.Frame(self.frm_root)
@@ -184,20 +184,36 @@ class MyWindow:
     # Mainloop
     self.root.mainloop()
 
-  def update_window(self, window, content):
+  # Center window (with content) to target (default to screen)
+  def center_window(self, window, content, target = None):
     # Force window generation
     content.update_idletasks()
     # Get actual size
     w = content.winfo_width()
     h = content.winfo_height()
     # Compute x and y coordinates for the Tk root window
-    ws = window.winfo_screenwidth() # width of the screen
-    hs = window.winfo_screenheight() # height of the screen
-    x = (ws/2) - (w/2)
-    y = (hs/2) - (h/2)
-    # Set the dimensions and position of the window
+    if target == None:
+      ws = window.winfo_screenwidth() # width of the screen
+      hs = window.winfo_screenheight() # height of the screen
+      x = (ws/2) - (w/2)
+      y = (hs/2) - (h/2)
+    else:
+      ws = target.winfo_width()
+      hs = target.winfo_height()
+      x = (ws/2) - (w/2) + target.winfo_x()
+      y = (hs/2) - (h/2) + target.winfo_y()
     window.geometry('%dx%d+%d+%d' % (w, h, x, y))
-    print(f"[update_window] w:{w} x h:{h}")
+    print(f"[center_window] w:{w} x h:{h} x:{x} y:{y}")
+
+  # Update window size with content size, but do not move window
+  def update_window_size(self, window, content):
+    # Force window generation
+    content.update_idletasks()
+    # Set the dimensions of the window
+    w = content.winfo_width()
+    h = content.winfo_height()
+    window.geometry('%dx%d' % (w, h))
+    print(f"[update_window_size] w:{w} x h:{h}")
 
   def update_remaining_mine_count(self):
     count = self.gs.mine_count - self.gs.flag_count
@@ -222,9 +238,10 @@ class MyWindow:
     self.popup_root.resizable(False, False)
     frame = tkinter.Frame(self.popup_root, padx=10, pady=10)
     frame.grid()
+    self.center_window(self.popup_root, frame, self.root)
     tkinter.Label(frame, text=msg).grid(column=0, row=0)
     tkinter.Button(frame, text="Restart", command=lambda: self.start_game(self.gs.row, self.gs.col, self.gs.mine_count)).grid(column=0, row=1)
-    self.update_window(self.popup_root, frame)
+    self.center_window(self.popup_root, frame, self.root)
 
   def gen_difficulty_popup(self):
     self.popup_root = tkinter.Toplevel(self.root)
@@ -232,6 +249,7 @@ class MyWindow:
     self.popup_root.resizable(False, False)
     frame = tkinter.Frame(self.popup_root, padx=10, pady=10)
     frame.grid()
+    self.center_window(self.popup_root, frame, self.root)
     tkinter.Label(frame, text="Row").grid(column=0, row=0)
     tkinter.Label(frame, text="Col").grid(column=0, row=1)
     tkinter.Label(frame, text="Mines").grid(column=0, row=2)
@@ -255,7 +273,7 @@ class MyWindow:
     tkinter.Button(frame, text="Start",
                    command=lambda: self.start_game(int(entry1.get()), int(entry2.get()), int(entry3.get()))
                    ).grid(column=0, row=3, columnspan = 2)
-    self.update_window(self.popup_root, frame)
+    self.center_window(self.popup_root, frame, self.root)
 
   def start_game(self, row, col, mine_count):
     if self.popup_root != None:
@@ -275,7 +293,7 @@ class MyWindow:
         self.cells[r][c] = self.gen_cell(self.frm_cells, r, c)
         self.cells[r][c].grid(column=c, row=r)
     self.update_remaining_mine_count()
-    self.update_window(self.root, self.frm_root)
+    self.update_window_size(self.root, self.frm_root)
 
   def gen_cell(self, root, row, col):
     button = tkinter.Label(root, width=2, height=1, borderwidth=2, relief=tkinter.RAISED)
