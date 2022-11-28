@@ -213,9 +213,10 @@ class MyWindow:
     cascadeMenu.add_command(label="Beginner", command=lambda: self.start_game(9, 9, 10))
     cascadeMenu.add_command(label="Intermediate", command=lambda: self.start_game(16, 16, 40))
     cascadeMenu.add_command(label="Expert", command=lambda: self.start_game(16, 30, 99))
+    cascadeMenu.add_command(label="Custom", command=lambda: self.gen_difficulty_popup())
     return newmenu
 
-  def gen_popup(self, msg):
+  def gen_message_popup(self, msg):
     self.popup_root = tkinter.Toplevel(self.root)
     self.popup_root.title("")
     self.popup_root.resizable(False, False)
@@ -223,6 +224,37 @@ class MyWindow:
     frame.grid()
     tkinter.Label(frame, text=msg).grid(column=0, row=0)
     tkinter.Button(frame, text="Restart", command=lambda: self.start_game(self.gs.row, self.gs.col, self.gs.mine_count)).grid(column=0, row=1)
+    self.update_window(self.popup_root, frame)
+
+  def gen_difficulty_popup(self):
+    self.popup_root = tkinter.Toplevel(self.root)
+    self.popup_root.title("")
+    self.popup_root.resizable(False, False)
+    frame = tkinter.Frame(self.popup_root, padx=10, pady=10)
+    frame.grid()
+    tkinter.Label(frame, text="Row").grid(column=0, row=0)
+    tkinter.Label(frame, text="Col").grid(column=0, row=1)
+    tkinter.Label(frame, text="Mines").grid(column=0, row=2)
+    # Force entry data type to int
+    def validate_callback(P):
+      if str.isdigit(P) or P == "":
+        return True
+      else:
+        return False
+    vcmd = (frame.register(validate_callback), '%P')
+    entry1 = tkinter.Entry(frame, validate='all', validatecommand=vcmd)
+    entry1.grid(column=1, row=0)
+    entry2 = tkinter.Entry(frame, validate='all', validatecommand=vcmd)
+    entry2.grid(column=1, row=1)
+    entry3 = tkinter.Entry(frame, validate='all', validatecommand=vcmd)
+    entry3.grid(column=1, row=2)
+    # Fill default value for entry
+    entry1.insert(0, str(self.gs.row))
+    entry2.insert(0, str(self.gs.col))
+    entry3.insert(0, str(self.gs.mine_count))
+    tkinter.Button(frame, text="Restart",
+                   command=lambda: self.start_game(int(entry1.get()), int(entry2.get()), int(entry3.get()))
+                   ).grid(column=0, row=3)
     self.update_window(self.popup_root, frame)
 
   def start_game(self, row, col, mine_count):
@@ -289,9 +321,9 @@ class MyWindow:
     # Show Win/Lose message if gamestate changed after reveal cell
     if self.gs.mark_cell_revealed(row, col):
       if self.gs.state == GameState.Lose:
-        self.gen_popup("You Lose")
+        self.gen_message_popup("You Lose")
       elif self.gs.state == GameState.Win:
-        self.gen_popup("You Win")
+        self.gen_message_popup("You Win")
     # Update revealed cell content, recursive reveal if cell has no mines around
     if self.gs.arr_mines[row][col]:
       self.cells[row][col].configure(text="*", fg="black")
