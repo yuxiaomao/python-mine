@@ -252,9 +252,9 @@ class MyWindow:
     entry1.insert(0, str(self.gs.row))
     entry2.insert(0, str(self.gs.col))
     entry3.insert(0, str(self.gs.mine_count))
-    tkinter.Button(frame, text="Restart",
+    tkinter.Button(frame, text="Start",
                    command=lambda: self.start_game(int(entry1.get()), int(entry2.get()), int(entry3.get()))
-                   ).grid(column=0, row=3)
+                   ).grid(column=0, row=3, columnspan = 2)
     self.update_window(self.popup_root, frame)
 
   def start_game(self, row, col, mine_count):
@@ -312,13 +312,28 @@ class MyWindow:
     # Refresh display
     self.update_remaining_mine_count()
 
+  # Reveal cell begin at (row, col), loop reveal surrounding cells if no mine around
   def reveal_cells(self, row, col):
+    # List of cells to reveal
+    pending_cells = [(row, col)]
+    def func(r, c):
+      pending_cells.append((r, c))
+    while (len(pending_cells) > 0):
+      (prow, pcol) = pending_cells.pop()
+      if self.reveal_cell(prow, pcol):
+        do_for_surrounding(self.gs.row, self.gs.col, prow, pcol, func)
+
+  # Reveal a single cell at (row, col)
+  # Should only be called by self.reveal_cells
+  # Return true if revealed an empty cell (no mine around)
+  def reveal_cell(self, row, col):
+    revealed_empty = False
     # Do nothing if already revealed
     if self.gs.arr_marks[row][col] == CellMark.Revealed:
-      return
+      return revealed_empty
     # If not revealed yet, set and check gamespace
     self.cells[row][col].configure(relief=tkinter.RIDGE)
-    # Show Win/Lose message if gamestate changed after reveal cell
+    # Check Win/Lose state if gamestate changed after mark cell reveal
     if self.gs.mark_cell_revealed(row, col):
       if self.gs.state == GameState.Lose:
         self.gen_message_popup("You Lose")
@@ -331,8 +346,9 @@ class MyWindow:
     elif self.gs.arr_tips[row][col] > 0:
       self.cells[row][col].configure(text=str(self.gs.arr_tips[row][col]), fg="black")
     else: # self.gs.arr_tips[row][col] == 0
-      # Reveal all surrounding cells because they are safe
-      do_for_surrounding(self.gs.row, self.gs.col, row, col, lambda r, c: self.reveal_cells(r, c))
+      self.cells[row][col].configure(text="", fg="black")
+      revealed_empty = True
+    return revealed_empty
 
   def mark_cell(self, row, col):
     # Do nothing if already revealed
