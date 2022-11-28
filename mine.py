@@ -354,6 +354,7 @@ class MyWindow:
     # Check Win/Lose state if gamestate changed after mark cell reveal
     if self.gs.mark_cell_revealed(row, col):
       if self.gs.state == GameState.Lose:
+        self.show_all_mines()
         self.gen_message_popup("You Lose")
       elif self.gs.state == GameState.Win:
         self.gen_message_popup("You Win")
@@ -367,6 +368,12 @@ class MyWindow:
       self.cells[row][col].configure(text="", fg="black")
       revealed_empty = True
     return revealed_empty
+
+  def show_all_mines(self):
+    for r in range(self.gs.row):
+      for c in range(self.gs.col):
+        if self.gs.arr_mines[r][c]:
+          self.cells[r][c].configure(text="*", fg="black")
 
   def mark_cell(self, row, col):
     # Do nothing if already revealed
