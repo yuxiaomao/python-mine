@@ -310,7 +310,7 @@ class MyWindow:
     widget = self.cells[row][col]
     # Animate Right click
     widget.configure(relief=tkinter.SUNKEN)
-    widget.after(50, lambda: widget.configure(relief=tkinter.RAISED))
+    self.root.after(50, lambda: widget.configure(relief=tkinter.RAISED))
     # Switch to next cellmark
     marktext = self.gs.mark_cell_next(row, col)
     widget.configure(text=marktext, fg="red")
@@ -332,6 +332,13 @@ class MyWindow:
       def func(r, c):
         if self.gs.arr_marks[r][c] != CellMark.Flag:
           self.reveal_cells(r, c)
+      do_for_surrounding(self.gs.row, self.gs.col, row, col, func)
+    else:
+      # If not equal, do animation on surrounding not revealed/flag cells
+      def func(r, c):
+        if self.gs.arr_marks[r][c] != CellMark.Revealed and self.gs.arr_marks[r][c] != CellMark.Flag:
+          self.cells[r][c].configure(relief=tkinter.SUNKEN)
+          self.root.after(50, lambda: self.cells[r][c].configure(relief=tkinter.RAISED))
       do_for_surrounding(self.gs.row, self.gs.col, row, col, func)
 
 # ----- Main -----
