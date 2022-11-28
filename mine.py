@@ -25,20 +25,27 @@ def gen_array_from_list(my_list, col):
     my_array.append(my_col)
   return my_array
 
+# Do func on (row, col)'s surrounding inside array (max_r, max_c)
+def do_for_surrounding(max_r, max_c, row, col, func, min_r = 0, min_c = 0):
+  for (r, c) in (
+    (row-1, col-1), (row-1, col), (row-1, col+1),
+    (row,   col-1),               (row,   col+1),
+    (row+1, col-1), (row+1, col), (row+1, col+1),
+    ):
+    if (r >= min_r and r < max_r and c >= min_c and c < max_c):
+      func(r, c)
+
 # Count presence of value in surrounding 8 cells if the current cell is not value
 # Return -1 otherwise
-# With array (row*col) and central position (pos_l*pos_c)
-def count_value_surrounding(array, row, col, value, pos_r, pos_c, min_r = 0, min_c = 0):
+def count_value_surrounding(array, value, max_r, max_c, row, col, min_r = 0, min_c = 0):
   count = 0
-  if array[pos_r][pos_c] == value:
+  if array[row][col] == value:
     return -1
-  for (r, c) in (
-    (pos_r-1, pos_c-1), (pos_r-1, pos_c), (pos_r-1, pos_c+1),
-    (pos_r,   pos_c-1),                   (pos_r,   pos_c+1),
-    (pos_r+1, pos_c-1), (pos_r+1, pos_c), (pos_r+1, pos_c+1),
-    ):
-    if (r >= min_r and r < row and c >= min_c and c < col and array[r][c] == value):
+  def func(r, c):
+    nonlocal count
+    if array[r][c] == value:
       count += 1
+  do_for_surrounding(max_r, max_c, row, col, func)
   return count
 
 # ----- Core -----
@@ -76,7 +83,7 @@ class GameSpace:
     tips = gen_array(self.row, self.col)
     for r in range(self.row):
       for c in range(self.col):
-        tips[r][c] = count_value_surrounding(self.arr_mines, self.row, self.col, True, r, c)
+        tips[r][c] = count_value_surrounding(self.arr_mines, True, self.row, self.col, r, c)
     return tips
 
   # Print
@@ -103,6 +110,8 @@ class MyWindow:
     self.gs = None # GameSpace
     self.frm = None # Frame containing mines
     self.cells = [] # Array containing widget for each cell
+    self.cell_left_pressed = False # Cell press state
+    self.cell_right_pressed = False # Cell press state
 
     # Window
     self.root = tkinter.Tk()
@@ -165,10 +174,28 @@ class MyWindow:
     return button
 
   def on_left_click_cell(self, event, row, col):
-    self.reveal_cells(row, col)
+    self.cell_left_pressed = True
+    self.root.after(50, lambda: self.on_click_cell_later(row, col))
 
   def on_right_click_cell(self, event, row, col):
-    self.mark_cell(row, col)
+    self.cell_right_pressed = True
+    self.root.after(50, lambda: self.on_click_cell_later(row, col))
+
+  def on_click_cell_later(self, row, col):
+    if not self.cell_right_pressed and not self.cell_left_pressed:
+      return
+    if self.cell_right_pressed and self.cell_left_pressed:
+      # Both left and right are clicked
+      self.validate_cell(row, col)
+    elif self.cell_left_pressed:
+      # Only left is clicked
+      self.reveal_cells(row, col)
+    elif self.cell_right_pressed:
+      # Only right is clicked
+      self.mark_cell(row, col)
+    # Reset press state
+    self.cell_left_pressed = False
+    self.cell_right_pressed = False
 
   def reveal_cells(self, row, col):
     # Do nothing if already revealed
@@ -184,13 +211,7 @@ class MyWindow:
       self.cells[row][col].configure(text=str(self.gs.arr_tips[row][col]), fg="black")
     else: # self.gs.arr_tips[row][col] == 0
       # Reveal all surrounding cells because they are safe
-      for (r, c) in (
-        (row-1, col-1), (row-1, col), (row-1, col+1),
-        (row,   col-1),               (row,   col+1),
-        (row+1, col-1), (row+1, col), (row+1, col+1),
-        ):
-        if (r >= 0 and r < self.gs.row and c >= 0 and c < self.gs.col):
-          self.reveal_cells(r, c)
+      do_for_surrounding(self.gs.row, self.gs.col, row, col, lambda r, c: self.reveal_cells(r, c))
 
   def mark_cell(self, row, col):
     # Do nothing if already revealed
@@ -211,6 +232,26 @@ class MyWindow:
     elif self.gs.arr_marks[row][col] == CellMark.Unknown:
       self.gs.arr_marks[row][col] = CellMark.NoMark
       widget.configure(text="", fg="red")
+
+  def validate_cell(self, row, col):
+    # If not reveal, reveal
+    if self.gs.arr_marks[row][col] != CellMark.Revealed:
+      self.reveal_cells(row, col)
+      return
+    # Count surrounding flags
+    count = 0
+    def func(r, c):
+      nonlocal count
+      if (self.gs.arr_marks[r][c] == CellMark.Flag):
+        count += 1
+    do_for_surrounding(self.gs.row, self.gs.col, row, col, func)
+    # Reveal surrounding no flag cells if count equal to tips
+    if count == self.gs.arr_tips[row][col]:
+      def func(r, c):
+        if (self.gs.arr_marks[r][c] != CellMark.Flag):
+            self.reveal_cells(r, c)
+      do_for_surrounding(self.gs.row, self.gs.col, row, col, func)
+
 
 # ----- Main -----
 MyWindow()
