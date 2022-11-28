@@ -75,6 +75,7 @@ class GameSpace:
     self.arr_tips = self.gen_tips_array()
     self.arr_marks = [[CellMark.NoMark for x in range(self.col)] for x in range(self.row)]
     self.reveal_count = 0
+    self.flag_count = 0
     self.state = GameState.InGame
 
   # Generate an array with positions of mines mark as true
@@ -102,6 +103,8 @@ class GameSpace:
   # Hypothesis: self.state == GameState.InGame, cell not revealed
   # Return true if gamestate changed
   def mark_cell_revealed(self, row, col):
+    if self.arr_marks[row][col] == CellMark.Flag:
+      self.flag_count -= 1
     self.arr_marks[row][col] = CellMark.Revealed
     self.reveal_count += 1
     # Check if lose or win
@@ -119,9 +122,11 @@ class GameSpace:
   def mark_cell_next(self, row, col):
     if self.arr_marks[row][col] == CellMark.NoMark:
       self.arr_marks[row][col] = CellMark.Flag
+      self.flag_count += 1
       mtext = "F"
     elif self.arr_marks[row][col] == CellMark.Flag:
       self.arr_marks[row][col] = CellMark.Unknown
+      self.flag_count -= 1
       mtext = "?"
     elif self.arr_marks[row][col] == CellMark.Unknown:
       self.arr_marks[row][col] = CellMark.NoMark
@@ -150,21 +155,31 @@ class MyWindow:
   def __init__(self):
     # Variables
     self.gs = None # GameSpace
-    self.frm = None # Frame containing mines
+    self.frm_cells = None # Frame containing cells
     self.cells = [] # Array containing widget for each cell
     self.cell_left_pressed = False # Cell press state
     self.cell_right_pressed = False # Cell press state
-    self.popuproot = None # PopUp with win/lose message
+    self.popup_root = None # PopUp with win/lose message
 
     # Window
     self.root = tkinter.Tk()
     self.root.title("Minesweeper - by YM")
     self.root.resizable(False, False)
+    self.frm_root = tkinter.Frame(self.root)
+    self.frm_root.grid()
+
     # Gen menu
     self.menu = self.gen_menu(self.root)
-    self.update_window(self.root, self.root)
+    self.update_window(self.root, self.frm_root)
+
+    # Gen content
+    self.frm_bar = tkinter.Frame(self.frm_root)
+    self.frm_bar.grid()
+    tkinter.Label(self.frm_bar, text="Remaining:").grid(column=0, row=0)
+    self.remaining_mine_count = tkinter.Label(self.frm_bar)
+    self.remaining_mine_count.grid(column=1, row=0)
     # Default level
-    self.gen_level(self.root, 9, 9, 10)
+    self.gen_level(9, 9, 10)
 
     # Mainloop
     self.root.mainloop()
@@ -184,6 +199,10 @@ class MyWindow:
     window.geometry('%dx%d+%d+%d' % (w, h, x, y))
     print(f"[update_window] w:{w} x h:{h}")
 
+  def update_remaining_mine_count(self):
+    count = self.gs.mine_count - self.gs.flag_count
+    self.remaining_mine_count.configure(text=str(count))
+
   def gen_menu(self, root):
     # Menu root
     newmenu = tkinter.Menu(root)
@@ -191,38 +210,39 @@ class MyWindow:
     # Menu "New Game", without leading dashed line
     cascadeMenu = tkinter.Menu(newmenu, tearoff=False)
     newmenu.add_cascade(label="New Game", menu=cascadeMenu)
-    cascadeMenu.add_command(label="Beginner", command=lambda: self.gen_level(root, 9, 9, 10))
-    cascadeMenu.add_command(label="Intermediate", command=lambda: self.gen_level(root, 16, 16, 40))
-    cascadeMenu.add_command(label="Expert", command=lambda: self.gen_level(root, 16, 30, 99))
+    cascadeMenu.add_command(label="Beginner", command=lambda: self.gen_level(9, 9, 10))
+    cascadeMenu.add_command(label="Intermediate", command=lambda: self.gen_level(16, 16, 40))
+    cascadeMenu.add_command(label="Expert", command=lambda: self.gen_level(16, 30, 99))
     return newmenu
 
   def gen_popup(self, msg):
-    self.popuproot = tkinter.Toplevel(self.root)
-    self.popuproot.title("")
-    self.popuproot.resizable(False, False)
-    frame = tkinter.Frame(self.popuproot, padx=10, pady=10)
+    self.popup_root = tkinter.Toplevel(self.root)
+    self.popup_root.title("")
+    self.popup_root.resizable(False, False)
+    frame = tkinter.Frame(self.popup_root, padx=10, pady=10)
     frame.grid()
     tkinter.Label(frame, text=msg).grid(column=0, row=0)
     tkinter.Button(frame, text="Restart", command=lambda: self.game_restart()).grid(column=0, row=1)
-    self.update_window(self.popuproot, frame)
+    self.update_window(self.popup_root, frame)
 
   def game_restart(self):
-    self.popuproot.destroy()
-    self.gen_level(self.root, self.gs.row, self.gs.col, self.gs.mine_count)
+    self.popup_root.destroy()
+    self.gen_level(self.gs.row, self.gs.col, self.gs.mine_count)
 
-  def gen_level(self, root, row, col, mine):
+  def gen_level(self, row, col, mine):
     self.gs = GameSpace(row, col, mine)
     print(f"[gen_level]\n{self.gs}")
-    if self.frm != None:
-      self.frm.grid_forget()
-    self.frm = tkinter.Frame(root, padx=10, pady=10, background="white")
-    self.frm.grid()
+    if self.frm_cells != None:
+      self.frm_cells.grid_forget()
+    self.frm_cells = tkinter.Frame(self.frm_root, padx=10, pady=10, background="white")
+    self.frm_cells.grid()
     self.cells = gen_array(row, col)
     for r in range(row):
       for c in range(col):
-        self.cells[r][c] = self.gen_cell(self.frm, r, c)
+        self.cells[r][c] = self.gen_cell(self.frm_cells, r, c)
         self.cells[r][c].grid(column=c, row=r)
-    self.update_window(self.root, self.frm)
+    self.update_remaining_mine_count()
+    self.update_window(self.root, self.frm_root)
 
   def gen_cell(self, root, row, col):
     button = tkinter.Label(root, width=2, height=1, borderwidth=2, relief=tkinter.RAISED)
@@ -256,6 +276,8 @@ class MyWindow:
     # Reset press state
     self.cell_left_pressed = False
     self.cell_right_pressed = False
+    # Refresh display
+    self.update_remaining_mine_count()
 
   def reveal_cells(self, row, col):
     # Do nothing if already revealed
