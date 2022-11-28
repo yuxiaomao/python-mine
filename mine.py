@@ -179,7 +179,7 @@ class MyWindow:
     self.remaining_mine_count = tkinter.Label(self.frm_bar)
     self.remaining_mine_count.grid(column=1, row=0)
     # Default level
-    self.gen_level(9, 9, 10)
+    self.start_game(9, 9, 10)
 
     # Mainloop
     self.root.mainloop()
@@ -210,9 +210,9 @@ class MyWindow:
     # Menu "New Game", without leading dashed line
     cascadeMenu = tkinter.Menu(newmenu, tearoff=False)
     newmenu.add_cascade(label="New Game", menu=cascadeMenu)
-    cascadeMenu.add_command(label="Beginner", command=lambda: self.gen_level(9, 9, 10))
-    cascadeMenu.add_command(label="Intermediate", command=lambda: self.gen_level(16, 16, 40))
-    cascadeMenu.add_command(label="Expert", command=lambda: self.gen_level(16, 30, 99))
+    cascadeMenu.add_command(label="Beginner", command=lambda: self.start_game(9, 9, 10))
+    cascadeMenu.add_command(label="Intermediate", command=lambda: self.start_game(16, 16, 40))
+    cascadeMenu.add_command(label="Expert", command=lambda: self.start_game(16, 30, 99))
     return newmenu
 
   def gen_popup(self, msg):
@@ -222,12 +222,13 @@ class MyWindow:
     frame = tkinter.Frame(self.popup_root, padx=10, pady=10)
     frame.grid()
     tkinter.Label(frame, text=msg).grid(column=0, row=0)
-    tkinter.Button(frame, text="Restart", command=lambda: self.game_restart()).grid(column=0, row=1)
+    tkinter.Button(frame, text="Restart", command=lambda: self.start_game(self.gs.row, self.gs.col, self.gs.mine_count)).grid(column=0, row=1)
     self.update_window(self.popup_root, frame)
 
-  def game_restart(self):
-    self.popup_root.destroy()
-    self.gen_level(self.gs.row, self.gs.col, self.gs.mine_count)
+  def start_game(self, row, col, mine_count):
+    if self.popup_root != None:
+      self.popup_root.destroy()
+    self.gen_level(row, col, mine_count)
 
   def gen_level(self, row, col, mine):
     self.gs = GameSpace(row, col, mine)
