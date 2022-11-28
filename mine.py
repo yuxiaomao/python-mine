@@ -1,6 +1,6 @@
 # Main file
 
-# ----- Gamestate -----
+# ----- Util -----
 from enum import Enum
 
 class CellMark(Enum):
@@ -8,8 +8,6 @@ class CellMark(Enum):
     NoMark = 0
     Flag = 1
     Unknown = 2
-
-# ----- Util -----
 
 # Genarate an empty array (list of list, size row * col)
 def gen_array(row, col):
@@ -101,42 +99,69 @@ import tkinter
 class MyWindow:
   def __init__(self):
     # Variables
-    self.gs = GameSpace(3, 4, 7)
-    print(self.gs)
+    self.gs = None # GameSpace
+    self.frm = None # Frame containing mines
 
     # Window
     self.root = tkinter.Tk()
     self.root.title("Minesweeper - by YM")
-    # Center the window
-    w = 400
-    h = 150
-    ws = self.root.winfo_screenwidth() # width of the screen
-    hs = self.root.winfo_screenheight() # height of the screen
-    # Calculate x and y coordinates for the Tk root window
-    x = (ws/2) - (w/2)
-    y = (hs/2) - (h/2)
-    # Set the dimensions and position of the window
-    self.root.geometry('%dx%d+%d+%d' % (w, h, x, y))
-
-    # Content
-    self.frm = tkinter.Frame(self.root, padx=10, pady=10, background="white")
-    self.frm.grid()
-    for r in range(self.gs.row):
-      for c in range(self.gs.col):
-        btn = self.gen_cell(self.frm, r, c)
-        btn.grid(column=c, row=r)
+    # Gen menu
+    self.menu = self.gen_menu(self.root)
+    self.update_window(self.root)
+    # Default level
+    self.gen_level(self.root, 9, 9, 10)
 
     # Mainloop
     self.root.mainloop()
 
+  def update_window(self, content):
+    # Force window generation
+    content.update_idletasks()
+    # Get actual size
+    w = content.winfo_width()
+    h = content.winfo_height()
+    # Compute x and y coordinates for the Tk root window
+    ws = self.root.winfo_screenwidth() # width of the screen
+    hs = self.root.winfo_screenheight() # height of the screen
+    x = (ws/2) - (w/2)
+    y = (hs/2) - (h/2)
+    # Set the dimensions and position of the window
+    self.root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+    print(f"[update_window] w:{w} x h:{h}")
+
+  def gen_menu(self, root):
+    # Menu root
+    newmenu = tkinter.Menu(root)
+    root.config(menu=newmenu)
+    # Menu "New Game", without leading dashed line
+    cascadeMenu = tkinter.Menu(newmenu, tearoff=False)
+    newmenu.add_cascade(label="New Game", menu=cascadeMenu)
+    cascadeMenu.add_command(label="Beginner", command=lambda: self.gen_level(root, 9, 9, 10))
+    cascadeMenu.add_command(label="Intermediate", command=lambda: self.gen_level(root, 16, 16, 40))
+    cascadeMenu.add_command(label="Expert", command=lambda: self.gen_level(root, 16, 30, 99))
+    return newmenu
+
+  def gen_level(self, root, row, col, mine):
+    self.gs = GameSpace(row, col, mine)
+    print(f"[gen_level]\n{self.gs}")
+    if self.frm != None:
+      self.frm.grid_forget()
+    self.frm = tkinter.Frame(root, padx=10, pady=10, background="white")
+    self.frm.grid()
+    for r in range(row):
+      for c in range(col):
+        btn = self.gen_cell(self.frm, r, c)
+        btn.grid(column=c, row=r)
+    self.update_window(self.frm)
+
   def gen_cell(self, root, row, col):
     button = tkinter.Label(root, width=2, height=1, borderwidth=2, relief=tkinter.RAISED)
-    button.bind("<Button-1>", lambda event, r=row, c=col: self.left_click_cell(event, r, c))
-    button.bind("<Button-2>", lambda event, r=row, c=col: self.right_click_cell(event, r, c))
-    button.bind("<Button-3>", lambda event, r=row, c=col: self.right_click_cell(event, r, c))
+    button.bind("<Button-1>", lambda event, r=row, c=col: self.on_left_click_cell(event, r, c))
+    button.bind("<Button-2>", lambda event, r=row, c=col: self.on_right_click_cell(event, r, c))
+    button.bind("<Button-3>", lambda event, r=row, c=col: self.on_right_click_cell(event, r, c))
     return button
 
-  def left_click_cell(self, event, row, col):
+  def on_left_click_cell(self, event, row, col):
     event.widget.configure(relief=tkinter.RIDGE)
     # Do nothing if already revealed
     if self.gs.arr_marks[row][col] == CellMark.Revealed:
@@ -146,10 +171,10 @@ class MyWindow:
     if self.gs.arr_mines[row][col]:
       event.widget.configure(text="*")
       print("BOOOOM!")
-    else:
+    elif self.gs.arr_tips[row][col] > 0:
       event.widget.configure(text=str(self.gs.arr_tips[row][col]))
 
-  def right_click_cell(self, event, row, col):
+  def on_right_click_cell(self, event, row, col):
     # Do nothing if already revealed
     if self.gs.arr_marks[row][col] == CellMark.Revealed:
       return
