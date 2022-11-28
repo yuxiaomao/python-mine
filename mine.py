@@ -95,12 +95,14 @@ class GameSpace:
 # ----- Interface -----
 
 import tkinter
+import time
 
 class MyWindow:
   def __init__(self):
     # Variables
     self.gs = None # GameSpace
     self.frm = None # Frame containing mines
+    self.cells = [] # Array containing widget for each cell
 
     # Window
     self.root = tkinter.Tk()
@@ -148,10 +150,11 @@ class MyWindow:
       self.frm.grid_forget()
     self.frm = tkinter.Frame(root, padx=10, pady=10, background="white")
     self.frm.grid()
+    self.cells = gen_array(row, col)
     for r in range(row):
       for c in range(col):
-        btn = self.gen_cell(self.frm, r, c)
-        btn.grid(column=c, row=r)
+        self.cells[r][c] = self.gen_cell(self.frm, r, c)
+        self.cells[r][c].grid(column=c, row=r)
     self.update_window(self.frm)
 
   def gen_cell(self, root, row, col):
@@ -162,35 +165,52 @@ class MyWindow:
     return button
 
   def on_left_click_cell(self, event, row, col):
-    event.widget.configure(relief=tkinter.RIDGE)
+    self.reveal_cells(row, col)
+
+  def on_right_click_cell(self, event, row, col):
+    self.mark_cell(row, col)
+
+  def reveal_cells(self, row, col):
     # Do nothing if already revealed
     if self.gs.arr_marks[row][col] == CellMark.Revealed:
       return
     # If not revealed yet, set and check gamespace
     self.gs.arr_marks[row][col] = CellMark.Revealed
+    self.cells[row][col].configure(relief=tkinter.RIDGE)
     if self.gs.arr_mines[row][col]:
-      event.widget.configure(text="*")
+      self.cells[row][col].configure(text="*", fg="black")
       print("BOOOOM!")
     elif self.gs.arr_tips[row][col] > 0:
-      event.widget.configure(text=str(self.gs.arr_tips[row][col]))
+      self.cells[row][col].configure(text=str(self.gs.arr_tips[row][col]), fg="black")
+    else: # self.gs.arr_tips[row][col] == 0
+      # Reveal all surrounding cells because they are safe
+      for (r, c) in (
+        (row-1, col-1), (row-1, col), (row-1, col+1),
+        (row,   col-1),               (row,   col+1),
+        (row+1, col-1), (row+1, col), (row+1, col+1),
+        ):
+        if (r >= 0 and r < self.gs.row and c >= 0 and c < self.gs.col):
+          self.reveal_cells(r, c)
 
-  def on_right_click_cell(self, event, row, col):
+  def mark_cell(self, row, col):
     # Do nothing if already revealed
     if self.gs.arr_marks[row][col] == CellMark.Revealed:
       return
+    # If not revealed
+    widget = self.cells[row][col]
     # Animate Right click
-    event.widget.configure(relief=tkinter.SUNKEN)
-    event.widget.after(50, lambda: event.widget.configure(relief=tkinter.RAISED))
+    widget.configure(relief=tkinter.SUNKEN)
+    widget.after(50, lambda: widget.configure(relief=tkinter.RAISED))
     # Switch to next cellmark
     if self.gs.arr_marks[row][col] == CellMark.NoMark:
       self.gs.arr_marks[row][col] = CellMark.Flag
-      event.widget.configure(text="F")
+      widget.configure(text="F", fg="red")
     elif self.gs.arr_marks[row][col] == CellMark.Flag:
       self.gs.arr_marks[row][col] = CellMark.Unknown
-      event.widget.configure(text="?")
+      widget.configure(text="?", fg="red")
     elif self.gs.arr_marks[row][col] == CellMark.Unknown:
       self.gs.arr_marks[row][col] = CellMark.NoMark
-      event.widget.configure(text="")
+      widget.configure(text="", fg="red")
 
 # ----- Main -----
 MyWindow()
