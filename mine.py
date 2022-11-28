@@ -150,6 +150,7 @@ class GameSpace:
 # ----- Interface -----
 
 import tkinter
+import time
 
 class MyWindow:
   def __init__(self):
@@ -173,11 +174,19 @@ class MyWindow:
     self.menu = self.gen_menu(self.root)
 
     # Gen content
-    self.frm_bar = tkinter.Frame(self.frm_root)
-    self.frm_bar.grid()
-    tkinter.Label(self.frm_bar, text="Remaining:").grid(column=0, row=0)
+    self.frm_bar = tkinter.Frame(self.frm_root, padx=10)
+    self.frm_bar.grid(sticky="ew")
+    self.frm_bar.pack_propagate(False)
+    self.frm_bar.grid_columnconfigure(0, weight=1)
+    self.frm_bar.grid_columnconfigure(1, weight=1)
+    # Timer
+    self.timelabel = tkinter.Label(self.frm_bar)
+    self.timelabel.grid(column=0, row=0, sticky="w")
+    self.current_time = 0
+    self.timer_job_id = None
+    # Remaining mine count
     self.remaining_mine_count = tkinter.Label(self.frm_bar)
-    self.remaining_mine_count.grid(column=1, row=0)
+    self.remaining_mine_count.grid(column=1, row=0, sticky="e")
     # Default level
     self.start_game(9, 9, 10)
 
@@ -214,6 +223,21 @@ class MyWindow:
     h = content.winfo_height()
     window.geometry('%dx%d' % (w, h))
     print(f"[update_window_size] w:{w} x h:{h}")
+
+  def start_timer(self):
+    self.stop_timer()
+    self.current_time = 0
+    self.update_time(time.time())
+
+  def stop_timer(self):
+    if self.timer_job_id != None:
+      self.root.after_cancel(self.timer_job_id)
+
+  # Update time periodically, should only be called by start_timer
+  def update_time(self, start_time):
+    self.current_time = time.time() - start_time
+    self.timelabel.configure(text=str(int(self.current_time)))
+    self.timer_job_id = self.root.after(500, lambda s=start_time: self.update_time(start_time))
 
   def update_remaining_mine_count(self):
     count = self.gs.mine_count - self.gs.flag_count
@@ -279,6 +303,7 @@ class MyWindow:
     if self.popup_root != None:
       self.popup_root.destroy()
     self.gen_level(row, col, mine_count)
+    self.start_timer()
 
   def gen_level(self, row, col, mine):
     self.gs = GameSpace(row, col, mine)
@@ -353,6 +378,7 @@ class MyWindow:
     self.cells[row][col].configure(relief=tkinter.RIDGE)
     # Check Win/Lose state if gamestate changed after mark cell reveal
     if self.gs.mark_cell_revealed(row, col):
+      self.stop_timer()
       if self.gs.state == GameState.Lose:
         self.show_all_mines()
         self.gen_message_popup("You Lose")
