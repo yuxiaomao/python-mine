@@ -1,9 +1,13 @@
-# Python based Minesweeper
+# Python-Mine: python based minesweeper
 
 Learning project
 
-## Build and Run
+## Implemented features
+- Left click (reveal cells), right click (mark cell), left+right click (validate cell)
+- Configurable difficulty
+- Restart popup with button at win/lose
 
+## Build and Run
 Run with Python environement:
 - (powershell) `python mine.py`
 - (linux) `python3 mine.py`

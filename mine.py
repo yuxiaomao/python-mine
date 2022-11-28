@@ -1,13 +1,19 @@
 # Main file
 
 # ----- Util -----
+
 from enum import Enum
 
 class CellMark(Enum):
-    Revealed = -1
-    NoMark = 0
-    Flag = 1
-    Unknown = 2
+  Revealed = -1
+  NoMark = 0
+  Flag = 1
+  Unknown = 2
+
+class GameState(Enum):
+  InGame = 0
+  Win = 1
+  Lose = 2
 
 # Genarate an empty array (list of list, size row * col)
 def gen_array(row, col):
@@ -48,6 +54,7 @@ def count_value_surrounding(array, value, max_r, max_c, row, col, min_r = 0, min
   do_for_surrounding(max_r, max_c, row, col, func)
   return count
 
+
 # ----- Core -----
 
 from random import randrange
@@ -59,11 +66,16 @@ class GameSpace:
     self.col = col
     self.mine_count = mine_count
 
-    # Other variables
+    # Constant
     self.size = self.row * self.col
+    self.empty_count = self.size - self.mine_count
+
+    # Other variables
     self.arr_mines = self.gen_mines_position()
     self.arr_tips = self.gen_tips_array()
     self.arr_marks = [[CellMark.NoMark for x in range(self.col)] for x in range(self.row)]
+    self.reveal_count = 0
+    self.state = GameState.InGame
 
   # Generate an array with positions of mines mark as true
   # Hypothesis: 0 <= mine_count <= size
@@ -86,6 +98,36 @@ class GameSpace:
         tips[r][c] = count_value_surrounding(self.arr_mines, True, self.row, self.col, r, c)
     return tips
 
+  # Mark cell at (row, col) with CellMark.Revealed
+  # Hypothesis: self.state == GameState.InGame, cell not revealed
+  # Return true if gamestate changed
+  def mark_cell_revealed(self, row, col):
+    self.arr_marks[row][col] = CellMark.Revealed
+    self.reveal_count += 1
+    # Check if lose or win
+    gamestate_changed = False
+    if self.arr_mines[row][col]:
+      self.state = GameState.Lose
+      gamestate_changed = True
+    elif self.reveal_count == self.empty_count:
+      self.state = GameState.Win
+      gamestate_changed = True
+    return gamestate_changed
+
+  # Mark cell at (row, col) with next cellmark
+  # Hypothesis: self.state == GameState.InGame, cell not revealed
+  def mark_cell_next(self, row, col):
+    if self.arr_marks[row][col] == CellMark.NoMark:
+      self.arr_marks[row][col] = CellMark.Flag
+      mtext = "F"
+    elif self.arr_marks[row][col] == CellMark.Flag:
+      self.arr_marks[row][col] = CellMark.Unknown
+      mtext = "?"
+    elif self.arr_marks[row][col] == CellMark.Unknown:
+      self.arr_marks[row][col] = CellMark.NoMark
+      mtext = ""
+    return mtext
+
   # Print
   def __str__(self):
     s = ""
@@ -99,10 +141,10 @@ class GameSpace:
         s += "\n"
     return s
 
+
 # ----- Interface -----
 
 import tkinter
-import time
 
 class MyWindow:
   def __init__(self):
@@ -112,32 +154,34 @@ class MyWindow:
     self.cells = [] # Array containing widget for each cell
     self.cell_left_pressed = False # Cell press state
     self.cell_right_pressed = False # Cell press state
+    self.popuproot = None # PopUp with win/lose message
 
     # Window
     self.root = tkinter.Tk()
     self.root.title("Minesweeper - by YM")
+    self.root.resizable(False, False)
     # Gen menu
     self.menu = self.gen_menu(self.root)
-    self.update_window(self.root)
+    self.update_window(self.root, self.root)
     # Default level
     self.gen_level(self.root, 9, 9, 10)
 
     # Mainloop
     self.root.mainloop()
 
-  def update_window(self, content):
+  def update_window(self, window, content):
     # Force window generation
     content.update_idletasks()
     # Get actual size
     w = content.winfo_width()
     h = content.winfo_height()
     # Compute x and y coordinates for the Tk root window
-    ws = self.root.winfo_screenwidth() # width of the screen
-    hs = self.root.winfo_screenheight() # height of the screen
+    ws = window.winfo_screenwidth() # width of the screen
+    hs = window.winfo_screenheight() # height of the screen
     x = (ws/2) - (w/2)
     y = (hs/2) - (h/2)
     # Set the dimensions and position of the window
-    self.root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+    window.geometry('%dx%d+%d+%d' % (w, h, x, y))
     print(f"[update_window] w:{w} x h:{h}")
 
   def gen_menu(self, root):
@@ -152,6 +196,20 @@ class MyWindow:
     cascadeMenu.add_command(label="Expert", command=lambda: self.gen_level(root, 16, 30, 99))
     return newmenu
 
+  def gen_popup(self, msg):
+    self.popuproot = tkinter.Toplevel(self.root)
+    self.popuproot.title("")
+    self.popuproot.resizable(False, False)
+    frame = tkinter.Frame(self.popuproot, padx=10, pady=10)
+    frame.grid()
+    tkinter.Label(frame, text=msg).grid(column=0, row=0)
+    tkinter.Button(frame, text="Restart", command=lambda: self.game_restart()).grid(column=0, row=1)
+    self.update_window(self.popuproot, frame)
+
+  def game_restart(self):
+    self.popuproot.destroy()
+    self.gen_level(self.root, self.gs.row, self.gs.col, self.gs.mine_count)
+
   def gen_level(self, root, row, col, mine):
     self.gs = GameSpace(row, col, mine)
     print(f"[gen_level]\n{self.gs}")
@@ -164,7 +222,7 @@ class MyWindow:
       for c in range(col):
         self.cells[r][c] = self.gen_cell(self.frm, r, c)
         self.cells[r][c].grid(column=c, row=r)
-    self.update_window(self.frm)
+    self.update_window(self.root, self.frm)
 
   def gen_cell(self, root, row, col):
     button = tkinter.Label(root, width=2, height=1, borderwidth=2, relief=tkinter.RAISED)
@@ -182,6 +240,8 @@ class MyWindow:
     self.root.after(50, lambda: self.on_click_cell_later(row, col))
 
   def on_click_cell_later(self, row, col):
+    if self.gs.state != GameState.InGame:
+      return
     if not self.cell_right_pressed and not self.cell_left_pressed:
       return
     if self.cell_right_pressed and self.cell_left_pressed:
@@ -202,8 +262,14 @@ class MyWindow:
     if self.gs.arr_marks[row][col] == CellMark.Revealed:
       return
     # If not revealed yet, set and check gamespace
-    self.gs.arr_marks[row][col] = CellMark.Revealed
     self.cells[row][col].configure(relief=tkinter.RIDGE)
+    # Show Win/Lose message if gamestate changed after reveal cell
+    if self.gs.mark_cell_revealed(row, col):
+      if self.gs.state == GameState.Lose:
+        self.gen_popup("You Lose")
+      elif self.gs.state == GameState.Win:
+        self.gen_popup("You Win")
+    # Update revealed cell content, recursive reveal if cell has no mines around
     if self.gs.arr_mines[row][col]:
       self.cells[row][col].configure(text="*", fg="black")
       print("BOOOOM!")
@@ -223,15 +289,8 @@ class MyWindow:
     widget.configure(relief=tkinter.SUNKEN)
     widget.after(50, lambda: widget.configure(relief=tkinter.RAISED))
     # Switch to next cellmark
-    if self.gs.arr_marks[row][col] == CellMark.NoMark:
-      self.gs.arr_marks[row][col] = CellMark.Flag
-      widget.configure(text="F", fg="red")
-    elif self.gs.arr_marks[row][col] == CellMark.Flag:
-      self.gs.arr_marks[row][col] = CellMark.Unknown
-      widget.configure(text="?", fg="red")
-    elif self.gs.arr_marks[row][col] == CellMark.Unknown:
-      self.gs.arr_marks[row][col] = CellMark.NoMark
-      widget.configure(text="", fg="red")
+    marktext = self.gs.mark_cell_next(row, col)
+    widget.configure(text=marktext, fg="red")
 
   def validate_cell(self, row, col):
     # If not reveal, reveal
@@ -242,16 +301,15 @@ class MyWindow:
     count = 0
     def func(r, c):
       nonlocal count
-      if (self.gs.arr_marks[r][c] == CellMark.Flag):
+      if self.gs.arr_marks[r][c] == CellMark.Flag:
         count += 1
     do_for_surrounding(self.gs.row, self.gs.col, row, col, func)
     # Reveal surrounding no flag cells if count equal to tips
     if count == self.gs.arr_tips[row][col]:
       def func(r, c):
-        if (self.gs.arr_marks[r][c] != CellMark.Flag):
-            self.reveal_cells(r, c)
+        if self.gs.arr_marks[r][c] != CellMark.Flag:
+          self.reveal_cells(r, c)
       do_for_surrounding(self.gs.row, self.gs.col, row, col, func)
-
 
 # ----- Main -----
 MyWindow()
