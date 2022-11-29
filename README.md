@@ -6,6 +6,7 @@ Learning project
 - Left click (reveal cells), right click (mark cell), left+right click (validate cell)
 - Configurable difficulty
 - Restart popup with button at win/lose
+- Display timer and remaining mines
 
 ## Build and Run
 Run with Python environement:

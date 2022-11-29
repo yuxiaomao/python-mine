@@ -164,7 +164,7 @@ class MyWindow:
 
     # Window
     self.root = tkinter.Tk()
-    self.root.title("Minesweeper - by YM")
+    self.root.title("Minesweeper - YM")
     self.root.resizable(False, False)
     self.center_window(self.root, self.root)
     self.frm_root = tkinter.Frame(self.root)
@@ -236,12 +236,14 @@ class MyWindow:
   # Update time periodically, should only be called by start_timer
   def update_time(self, start_time):
     self.current_time = time.time() - start_time
-    self.timelabel.configure(text=str(int(self.current_time)))
-    self.timer_job_id = self.root.after(500, lambda s=start_time: self.update_time(start_time))
+    dtext = "Time: " + str(int(self.current_time))
+    self.timelabel.configure(text=dtext)
+    self.timer_job_id = self.root.after(100, lambda s=start_time: self.update_time(start_time))
 
   def update_remaining_mine_count(self):
     count = self.gs.mine_count - self.gs.flag_count
-    self.remaining_mine_count.configure(text=str(count))
+    dtext = "Remaining: " + str(count)
+    self.remaining_mine_count.configure(text=dtext)
 
   def gen_menu(self, root):
     # Menu root
@@ -269,14 +271,14 @@ class MyWindow:
 
   def gen_difficulty_popup(self):
     self.popup_root = tkinter.Toplevel(self.root)
-    self.popup_root.title("")
+    self.popup_root.title("Custom")
     self.popup_root.resizable(False, False)
     frame = tkinter.Frame(self.popup_root, padx=10, pady=10)
     frame.grid()
     self.center_window(self.popup_root, frame, self.root)
-    tkinter.Label(frame, text="Row").grid(column=0, row=0)
-    tkinter.Label(frame, text="Col").grid(column=0, row=1)
-    tkinter.Label(frame, text="Mines").grid(column=0, row=2)
+    tkinter.Label(frame, text="Height (9-30)").grid(column=0, row=0)
+    tkinter.Label(frame, text="Width (9-30)").grid(column=0, row=1)
+    tkinter.Label(frame, text="Mines (>=10)").grid(column=0, row=2)
     # Force entry data type to int
     def validate_callback(P):
       if str.isdigit(P) or P == "":
@@ -284,11 +286,11 @@ class MyWindow:
       else:
         return False
     vcmd = (frame.register(validate_callback), '%P')
-    entry1 = tkinter.Entry(frame, validate='all', validatecommand=vcmd)
+    entry1 = tkinter.Entry(frame, width=5, validate='all', validatecommand=vcmd)
     entry1.grid(column=1, row=0)
-    entry2 = tkinter.Entry(frame, validate='all', validatecommand=vcmd)
+    entry2 = tkinter.Entry(frame, width=5, validate='all', validatecommand=vcmd)
     entry2.grid(column=1, row=1)
-    entry3 = tkinter.Entry(frame, validate='all', validatecommand=vcmd)
+    entry3 = tkinter.Entry(frame, width=5, validate='all', validatecommand=vcmd)
     entry3.grid(column=1, row=2)
     # Fill default value for entry
     entry1.insert(0, str(self.gs.row))
@@ -299,15 +301,23 @@ class MyWindow:
                    ).grid(column=0, row=3, columnspan = 2)
     self.center_window(self.popup_root, frame, self.root)
 
-  def start_game(self, row, col, mine_count):
+  def start_game(self, row, col, mine):
     if self.popup_root != None:
       self.popup_root.destroy()
-    self.gen_level(row, col, mine_count)
+    self.gen_level(row, col, mine)
     self.start_timer()
 
   def gen_level(self, row, col, mine):
+    # Check row, col, mine_count value before generate gamespace
+    if row < 9: row = 9
+    if row > 30: row = 30
+    if col < 9: col = 9
+    if col > 30: col = 30
+    if mine < 10: mine = 10
+    if mine > (row*col): mine = row*col
     self.gs = GameSpace(row, col, mine)
-    print(f"[gen_level]\n{self.gs}")
+    print(f"[gen_level] row:{row} col:{col} mine:{mine}")
+    # print(self.gs) # Spoiler!!
     if self.frm_cells != None:
       self.frm_cells.grid_forget()
     self.frm_cells = tkinter.Frame(self.frm_root, padx=10, pady=10, background="white")
@@ -382,12 +392,13 @@ class MyWindow:
       if self.gs.state == GameState.Lose:
         self.show_all_mines()
         self.gen_message_popup("You Lose")
+        print("BOOOOM!")
       elif self.gs.state == GameState.Win:
         self.gen_message_popup("You Win")
+        print("Congratulations! Time: " + ('%.1f' % self.current_time))
     # Update revealed cell content, recursive reveal if cell has no mines around
     if self.gs.arr_mines[row][col]:
       self.cells[row][col].configure(text="*", fg="black")
-      print("BOOOOM!")
     elif self.gs.arr_tips[row][col] > 0:
       self.cells[row][col].configure(text=str(self.gs.arr_tips[row][col]), fg="black")
     else: # self.gs.arr_tips[row][col] == 0
